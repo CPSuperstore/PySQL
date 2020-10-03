@@ -26,7 +26,7 @@ class ResultSet:
         return self.data[x]
 
     def __setitem__(self, key, value):
-        self.pysql.c.execute(
+        self.pysql.raw_modify(
             "UPDATE {} SET {}={} WHERE id={}".format(
                 self.table, key, "null" if value in ["null", None] else "'{}'".format(value), self.unique_id
             )
@@ -35,6 +35,11 @@ class ResultSet:
             self.data[key] = self.pysql.deep_select(key, id=value)
         else:
             self.data[key] = value
+
+    def delete(self):
+        self.pysql.raw_modify(
+            "DELETE FROM {} WHERE id={}".format(self.table, self.unique_id)
+        )
 
     def put_children(self, key:str, data:list):
         self.data[key] = data

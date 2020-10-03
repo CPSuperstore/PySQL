@@ -64,7 +64,7 @@ class PySQL:
             return data
         return self.conn.converter.escape(str(data.encode('unicode_escape'))[2:-1])
 
-    def select(self, table, cols:list=None, **kwargs) -> typing.List[result_set.ResultSet]:
+    def select(self, table, cols:list=None, order_by="id ASC", **kwargs) -> typing.List[result_set.ResultSet]:
         if cols is None:
             cols = "*"
         else:
@@ -75,6 +75,8 @@ class PySQL:
         where = " AND ".join("{} is null" if v is "null" else "{}='{}'".format(k, v) for k, v in kwargs.items())
         if len(kwargs) > 0:
             stmt += " WHERE " + where
+
+        stmt += " ORDER BY {}".format(order_by)
 
         self.c.execute(stmt)
 
@@ -99,6 +101,16 @@ class PySQL:
                     )
 
         return entity
+
+    def insert(self, table, **kwargs):
+        stmt = "INSERT INTO {} ({}) VALUES ({})".format(
+            table, ", ".join(kwargs.keys()),
+            ", ".join(
+                "null" if v in ["null", None] else "'{}'".format(v) for v in kwargs.values()
+            )
+        )
+        row_id, _ = self.raw_modify(stmt)
+        return self.deep_select(table, id=row_id)
 
     def raw_select(self, query:str):
         self.c.execute(query)
