@@ -161,6 +161,12 @@ class PySQL:
         :param order_by: The column nad direction to order by
         :param kwargs: The parameters to select by
         :return: the selected columns
+        :param depth: The starting depth (leave this as 0) - for recursion purposes 
+        :param max_depth: The maximum table depth to search. 
+                          Prevents recursion issues. 
+                          This value doesn't need to be any bigger than 2 in most cases. 
+                          Default is 1 (an object + its sub objects)
+                          0 means a shallow select
         """
 
         fks = self.database_map[table]
