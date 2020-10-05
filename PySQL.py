@@ -22,6 +22,7 @@ class PySQL:
         self.cursor = None
 
         self.database_map = {}
+        self.reverse_database_map = {}
 
         self.regenerate_cursor()
         self.regenerate_table_map()
@@ -93,6 +94,7 @@ class PySQL:
         WARNING: Calling this method mid-execution can cause adverse side effects with selections made before the calling of this method 
         """
         self.database_map = {list(i.values())[0]: {} for i in self.get_tables()}
+        self.reverse_database_map = {list(i.values())[0]: {} for i in self.get_tables()}
 
         foreign_keys = self.get_foreign_keys()
 
@@ -100,6 +102,10 @@ class PySQL:
             self.database_map[fk["TABLE_NAME"]][fk["COLUMN_NAME"]] = {
                 "tbl": fk["REFERENCED_TABLE_NAME"],
                 "col": fk["REFERENCED_COLUMN_NAME"]
+            }
+            self.reverse_database_map[fk["REFERENCED_TABLE_NAME"]][fk["TABLE_NAME"]] = {
+                "col": fk["COLUMN_NAME"],
+                "colRef": fk["REFERENCED_COLUMN_NAME"]
             }
 
     def escape_string(self, data: str):
@@ -146,7 +152,7 @@ class PySQL:
 
         return result_collection.ResultCollection(rs)
 
-    def deep_select(self, table, cols:list=None, order_by="id ASC", **kwargs):
+    def deep_select(self, table, cols:list=None, order_by="id ASC", depth=0, max_depth=1, **kwargs):
         """
         Performs a SQL select based on the parameters, and gets the sub-objects connected by a foreign key and returns
         Those results embedded in the result object
@@ -156,18 +162,33 @@ class PySQL:
         :param kwargs: The parameters to select by
         :return: the selected columns
         """
+
         fks = self.database_map[table]
+        reverse_fks = self.reverse_database_map[table]
+
         entity = self.select(table, cols, order_by, **kwargs)
+
+        if depth >= max_depth:
+            return entity
+
+        depth += 1
+
         for e in entity:
             for n in e.column_names:
                 if n in fks:
                     e.put_child(
                         n, self.deep_select(
-                            fks[n]["tbl"], **{fks[n]["col"]: e[n]}
+                            fks[n]["tbl"], **{fks[n]["col"]: e[n]}, max_depth=max_depth, depth=depth
                         )[0]
                     )
 
+            for t, c in reverse_fks.items():
+                e.put_child(
+                    t, self.deep_select(t, **{c["col"]: e[c["colRef"]]}, max_depth=max_depth, depth=depth)
+                )
+
         return entity
+
 
     def insert(self, table, **kwargs):
         """
