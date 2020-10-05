@@ -45,3 +45,9 @@ class ResultCollection(list):
         """
         for i in self:          # type: result_set.ResultSet
             i[col] = val
+
+    def get_native(self):
+        d = []
+        for i in self:
+            d.append(i.data)
+        return d
